@@ -1,0 +1,12 @@
+Package: RCentrales
+Title: Herramientas en R para el Diseño de Canales y Túneles en Centrales Hidroeléctricas
+Version: 1.0
+Authors@R: 
+    person("Pablo", "Fuchs", "pablofuchs_llama@hotmail.com", role = c("aut", "cre"))
+Description: Este paquete contiene funciones para el cálculo hidráulico de túneles de sección tipo baúl cuadrada y no cuadrada. Asimismo, incluye un tutorial para el cálculo hidráulico de canales abiertos. 
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Suggests: 
+    learnr

@@ -1,0 +1,311 @@
+---
+title: "Diseño hidráulico de canales"
+author: "Pablo Fuchs"
+date: "2026-05-21"
+output: 
+  learnr::tutorial:
+    language: es
+    progressive: true
+    allow_skip: true
+runtime: shiny_prerendered
+header-includes:
+    - \renewcommand{\figurename}{Fig.}
+mainfont: "Times New Roman" # primary body text font
+sansfont: "Arial" # font used for headers
+monofont: "Courier New" # font used for code block
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+tutorial_options(exercise.eval = FALSE, exercise.startover = TRUE)
+gradethis::gradethis_setup()
+```
+
+## Introducción
+
+El presente documento interactivo muestra los pasos a seguir para utilizar R para el diseño hidráulico de canales abiertos. El documento incluye ejemplos y ejercicios y, aunque no es exhaustivo, puede ser utilizado como un tutorial.
+
+El cálculo hidráulico está basado en los paquetes `rivr` y `hydraulics`. Para cargar estos paquetes, utilizar las siguientes funciones:
+
+```{r}
+library(rivr)
+library(hydraulics)
+```
+
+###
+
+### Funciones disponibles para el cálculo hidráulico de canales
+
+El paquete `rivr` incluye las siguientes funciones:
+
+- `channel_geom`: calcula las propiedades geométricas para canales trapezoidales.
+- `compute_profile`: calcula perfiles en flujo gradualmente variado para canales prismáticos utilizando el método estándar por pasos.
+- `critical_depth`: calcula el tirante crítico.
+- `froude`: calcula el número de Froude.
+- `normal_depth`: calcula el tirante normal.
+
+Por su parte, el paquete `hydraulics` incluye las siguientes funciones:
+
+- `direct_step`: aplica el método directo por pasos para calcular perfiles en flujo gradualmente variado para canales trapezoidales.
+- `manningc`: resuelve la ecuación de Manning para flujo uniforme en secciones circulafres parcialmente llenas.
+- `manningt`: resuelve la ecuación de Manning para flujo uniforme en secciones trapezoidales.
+- `sequent_depth`: resuelve la ecuación de cantidad de movimiento para flujo en canales abiertos con secciópn trapezoidal para determinar los tirantes conjugados.
+- `spec_energy_trap`: grafica el diagrama de energía específica para canales trapezoidales, incluyendo el tirante crítico y la energía específica mínima.
+- `xc_circle`: grafica la sección transversal de un canal de sección circular.
+- `xc_trap`: grafica la sección transversal de un canal de sección trapezoidal.
+
+### Argumentos de las funciones
+
+```{r, eval=FALSE}
+# Paquete 'rivr'
+
+# Argumentos:
+# y: tirante (m)
+# B: ancho del canal (m)
+# SS: talud lateral (m/m). Para canal rectangular, SS = 0
+# So: pendiente del canal (m/m)
+# n: coeficiente de rugosidad de Manning
+# Q: caudal (m^3/s)
+# y0: tirante en la sección de control (m)
+# Cm: coeficiente de conversión. Para SI, Cm = 1
+# g: aceleración de la gravedad (m/s^2)
+# stepdist: intervalo de distancia utilizado en el método estándar por pasos (m)
+# totaldist: distancia total aguas arriba (o aguas abajo) para calcular el perfil (m)
+# yopt: estimación inicial para el tirante normal (m)
+# A: área mojada. Puede obtenerse con 'channel_geom'
+# DH: profundidad hidráulica. Puede obtenerse con 'channel_geom'
+
+channel_geom(y, B, SS)
+compute_profile(So, n, Q, y0, Cm, g, B, SS, stepdist, totaldist)
+critical_depth(Q, yopt, g, B, SS)
+froude(Q, g, A, DH)
+normal_depth(So, n, Q, yopt, Cm, B, SS)
+```
+
+###
+
+```{r, eval=FALSE}
+# Paquete 'hydraulics'
+
+# Argumentos:
+# So: pendiente del canal (m/m)
+# n: coeficiente de rugosidad de Manning
+# Q: caudal (m^3/s)
+# y1: tirante inicial (m)
+# y2: tirante final (m)
+# b: ancho del canal (m)
+# m: talud lateral (m/m)
+# nsteps: número de intervalos entre y1 y y2
+# units: unidades de medida. Para SI, units = "SI"
+# Sf: pendiente de la linea de energía (m/m)
+# y: tirante (m)
+# d: diámetro del canal circular (m)
+# y_d: relación tirante/diámetro
+# scale: multiplicador para la escala del gráfico de energía específica. Por defecto scale = 3
+
+direct_step(So, n, Q, y1, y2, b, m, nsteps, units)
+manningc(Q, n, Sf, y, d, y_d, units)
+manningt(Q, n, m, Sf, y, b, units)
+sequent_depth(Q, b, y, m, units)
+spec_energy_trap(Q, b, m, y, scale, units)
+xc_circle(y, d, units)
+xc_trap(y, b, m, units)
+```
+
+En el siguiente ejemplo veremos el uso de estas funciones.
+
+## Ejercicio 1
+
+Se quiere diseñar un canal de sección trapezoidal con pendiente 0.003 para conducir un caudal de 1.2 $\mathrm{m}^3~\mathrm{s}^{-1}$. El canal se recubrirá de hormigón no reforzado terminado con lechada.
+
+**Solución**
+
+```{r canal1, exercise=TRUE, exercise.timelimit = 60}
+# Los valores de todas las variables pueden ser reemplazadas
+n <- 0.013 # Coeficiente de Manning para hormigón terminado en lechada
+Q <- 1.2
+So <- 0.003
+b <- 1.3 # El ancho del canal se define de acuerdo a la topografía y recomendaciones del USBR
+z <- 1.5 # El talud lateral dependen de las propiedades mecánicas del suelo a excavar
+
+# Cálculo del tirante normal
+yn <- normal_depth(So = So, n = n, Q = Q, yopt = 2.0, Cm = 1, B = b, SS = z)
+cat(sprintf("yn = %.2f %s", yn, "m"))
+
+# Geometría del canal
+geom_canal <- channel_geom(y = yn, B = b, SS = z)
+cat("Propiedades geométricas del canal")
+print(geom_canal)
+
+# Velocidad del flujo
+V <- Q / geom_canal[["A"]]
+cat(sprintf("V = %.2f %s", V, "m/s"))
+
+# Número de Froude
+Fr <- froude(Q = Q, g = 9.81, A = geom_canal[["A"]], DH = geom_canal[["DH"]])
+cat(sprintf("Fr = %.2f", Fr))
+
+# Cálculo del tirante crítico
+yc <- critical_depth(Q = Q, yopt = 1.0, g = 9.81, B = b, SS = z)
+cat(sprintf("yc = %.2f %s", yc, "m"))
+```
+
+Alternativamente, puede utilizarse la función `manningt` para calcular las propiedades hidráulicas y geométricas de un canal, incluyendo la sección hidráulica optima:
+
+```{r canal2, exercise=TRUE, exercise.timelimit = 60}
+n <- 0.013
+Q <- 1.2
+So <- 0.003
+b <- 1.3 
+z <- 1.5
+
+# Cálculo hidráulico incluyendo cálculo del tirante para la sección óptima
+canal_trap_op <- manningt(Q = Q, n = n, m = z, Sf = So, b = b, units = "SI")
+print(canal_trap_op)
+
+# Cálculo hidráulico incluyendo cálculo del ancho de canal para la sección óptima
+manningt(Q = Q, n = n, m = z, Sf = So, y = canal_trap_op$yopt, units = "SI")
+
+# Cálculo del bordo libre
+BL <- 0.30 + 0.25 * canal_trap_op$y
+cat(sprintf("BL = %.2f %s", BL, "m"))
+
+# Diagrama del canal
+xc_trap(y = canal_trap_op$y + BL, b = b, m = z, units = "SI")
+```
+
+## Ejercicio 2
+
+En una pequeña central hidroeléctrica se requiere conducir un caudal por una tubería de PVC ($\mathrm{n} = 0.009$). La pendiente máxima que permite el terreno es de 1% y el caudal de diseño a conducirse es de 0.35 $\mathrm{m}^3~\mathrm{s}^{-1}$. Calcular el diámetro de la tubería requerido para conducir el flujo con un tirante máximo del 90% del diámetro elegido.
+
+**Solución**
+
+```{r canal3, exercise=TRUE, exercise.timelimit = 60}
+n <- 0.009
+So <- 0.01
+y_d <- 0.90 # relación tirante/diámetro
+Q <- 0.35
+
+# Cálculo hidráulico incluyendo cálculo del ancho de canal para la sección óptima
+canal_circ <- manningc(Q = Q, n = n, Sf = So, y_d = y_d, units = "SI")
+print(canal_circ)
+
+# Diagrama del canal
+xc_circle(y = canal_circ$y, d = canal_circ$d, units = "SI")
+```
+
+## Ejercicio 3
+
+Un canal trapezoidal de pendiente pequeña conduce un caudal de 5.625 $\mathrm{m}^3~\mathrm{s}^{-1}$ con un tirante de 1.50 m. El canal tiene un ancho de 1.50 m y talud lateral 1. Determinar la energía específica correspondiente a estas condiciones de flujo, así como el régimen de flujo, la energía mínima y tirante crítico que puede llevar el canal.
+
+**Solución**
+
+```{r canal4, exercise=TRUE, exercise.timelimit = 60}
+Q <- 5.625
+b <- 1.50
+z <- 1
+y <- 1.50
+
+# Determinación de la curva de energía específica
+spec_energy_trap(Q = Q, b = b, m = z, y = y, scale = 3, units = "SI")
+```
+
+La energía específica para estas condiciones de flujo es:
+
+```{r canal4_q1, exercise=TRUE}
+
+```
+
+```{r canal4_q1-check}
+grade_result(
+  pass_if(~identical(.result, 1.580))
+)
+```
+
+Calcular el número de Froude (`Fr`) y el tirante crítico (`yc`).
+
+```{r canal4_q2, exercise = TRUE}
+
+```
+
+```{r canal4_q2-solution, exercise.reveal_solution = TRUE}
+# Fr <- froude(Q = 5.625, g = 9.81, A = 4.5, DH = 1.0)
+Fr <- 0.40
+# yc <- critical_depth(Q = 5.625, yopt = 1.0, g = 9.81, B = 1.5, SS = 1)
+yc <- 0.91
+```
+ 
+```{r canal4_q2-code-check}
+grade_code()
+```
+
+Determinar el régimen de flujo a partir de estos valores. Finalmente, comparar los resultados con el gráfico de energía específica.
+
+```{r canal4_q3, echo=FALSE}
+question("El régimen de flujo es: ",
+  answer("Laminar"),
+  answer("Turbulento"),
+  answer("Subcrítico", correct = TRUE),
+  answer("Supercrítico"),
+  answer("Ninguna de las anteriores"),
+  incorrect = "Intenta de nuevo!",
+  allow_retry = TRUE,
+  random_answer_order = TRUE
+)
+```
+
+## Ejercicio 4
+
+(a) Un canal trapezoidal conduce un caudal de 30 $\mathrm{m}^3~\mathrm{s}^{-1}$ con una pendiente de 0.001. El canal tiene un ancho de 10 m y una pendiente lateral 2:1. Una estructura de control construída aguas abajo eleva el tirante a 5 m. Calcular el perfil del flujo si $\mathrm{n} = 0.013$. 
+
+(b) Determinar los tirantes a 1, 2 y 4 km aguas arriba de la estructura de control.
+
+**Solución (a)**
+
+```{r canal5, exercise=TRUE, exercise.timelimit = 60}
+So <- 0.001
+Q <- 30
+b <- 10
+n <- 0.013
+y_control <- 5
+z <- 2
+
+# Cálculo de los tirantes normal y crítico
+yn <- normal_depth(So = So, n = n, Q = Q, yopt = 3.0, Cm = 1, B = b, SS = z)
+cat(sprintf("yn = %.2f %s", yn, "m"))
+yc <- critical_depth(Q = Q, yopt = 1.8, g = 9.81, B = b, SS = z)
+cat(sprintf("yc = %.2f %s", yc, "m"))
+
+# Cálculo del perfil de flujo por el método directo por pasos
+res <- direct_step(So = So, n = n, Q = Q, y1 = y_control, y2 = yn, b = b, m = z, nsteps = 10, units = "SI")
+print(res)
+
+# Gráfico del perfil de flujo
+plot(res$x, res$y, type = "l", xlab = "Distancia", ylab = "Tirante", col = "blue")
+```
+
+###
+
+###
+
+**Solución (b)**
+
+```{r canal6, exercise=TRUE, exercise.timelimit = 60}
+So <- 0.001
+Q <- 30
+b <- 10
+n <- 0.013
+y_control <- 5
+z <- 2
+
+# Cálculo del perfil de flujo por el método estándar por pasos
+res <- compute_profile(So = So, n = n, Q = Q, y0 = y_control, Cm = 1, g = 9.81, B = b, SS = z, stepdist = 500, totaldist = 4000)
+print(res)
+
+# Gráfico del perfil de flujo
+plot(res$x, res$y, type = "l", xlab = "Distancia", ylab = "Tirante", col = "blue")
+```
+
+```{r print-button, echo=FALSE}
+actionButton("print_page", "Imprimir/Guardar como PDF", onclick = "window.print();")
+```
