@@ -19,6 +19,8 @@ monofont: "Courier New" # font used for code block
 library(learnr)
 tutorial_options(exercise.eval = FALSE, exercise.startover = TRUE)
 gradethis::gradethis_setup()
+library(rivr)
+library(hydraulics)
 ```
 
 ## Introducción
